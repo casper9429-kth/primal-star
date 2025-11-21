@@ -8,9 +8,11 @@
     "start": "next start"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.4.5",
     "cookie": "^1.0.2",
+    "dotenv": "^17.2.3",
     "jose": "^6.1.2",
     "next": "16.0.3",
     "react": "19.2.0",

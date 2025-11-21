@@ -2,6 +2,7 @@ import { getSession } from '@/lib/auth';
 import db from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { submitScore } from './actions';
+import ShootForm from './ShootForm';
 
 export default async function ShootPage({ params }) {
     const session = await getSession();
@@ -26,30 +27,7 @@ export default async function ShootPage({ params }) {
                 {/* Capture Section */}
                 <div className="card">
                     <h2 style={{ marginBottom: '1.5rem' }}>New Series</h2>
-                    <form action={submitScore}>
-                        <input type="hidden" name="eventId" value={params.eventId} />
-
-                        <div style={{ marginBottom: '2rem', textAlign: 'center', border: '2px dashed var(--surface-hover)', padding: '3rem', borderRadius: '8px' }}>
-                            <label htmlFor="target-upload" style={{ cursor: 'pointer', display: 'block' }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📸</div>
-                                <p style={{ marginBottom: '1rem' }}>Tap to take photo of target</p>
-                                <input
-                                    id="target-upload"
-                                    name="image"
-                                    type="file"
-                                    accept="image/*"
-                                    capture="environment"
-                                    style={{ display: 'none' }}
-                                    required
-                                />
-                                <div className="btn btn-outline">Select Image</div>
-                            </label>
-                        </div>
-
-                        <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                            Analyze & Log Score
-                        </button>
-                    </form>
+                    <ShootForm eventId={eventId} />
                 </div>
 
                 {/* History Section */}

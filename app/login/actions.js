@@ -5,7 +5,7 @@ import db from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export async function login(formData) {
-    const username = formData.get('username');
+    const username = formData.get('username')?.toString().trim();
     const password = formData.get('password');
 
     if (!username || !password) {

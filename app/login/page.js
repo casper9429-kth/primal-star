@@ -8,7 +8,7 @@ export default function LoginPage() {
         <div style={{ maxWidth: '400px', margin: '4rem auto' }}>
             <div className="card">
                 <h1 style={{ marginBottom: '1.5rem', textAlign: 'center', color: 'var(--primary)' }}>Member Login</h1>
-                <form action={login}>
+                <form action={login} autoComplete="off">
                     <div style={{ marginBottom: '1rem' }}>
                         <label className="label" htmlFor="username">Username</label>
                         <input className="input" type="text" id="username" name="username" required />
