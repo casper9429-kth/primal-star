@@ -10,11 +10,12 @@ const initialState = {
 };
 
 export default function ShootForm({ eventId }) {
-    const [step, setStep] = useState('upload'); // 'upload' | 'review'
+    const [mode, setMode] = useState('upload'); // 'upload' | 'calibrate' | 'score'
     const [analysisData, setAnalysisData] = useState(null);
     const [imageData, setImageData] = useState(null);
     const [shots, setShots] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [calibrationPoints, setCalibrationPoints] = useState([]);
     const router = useRouter();
 
     const [state, formAction, isPending] = useActionState(uploadImage, initialState);
@@ -24,19 +25,56 @@ export default function ShootForm({ eventId }) {
             setAnalysisData(state.analysis);
             setImageData(state.imageData);
             setShots(state.analysis.shots);
-            setStep('review');
+            setMode('calibrate'); // Go to calibration first
         }
     }, [state]);
 
+    const handleCalibrationClick = (e) => {
+        const rect = e.target.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+
+        const newPoints = [...calibrationPoints, { x, y }];
+        setCalibrationPoints(newPoints);
+
+        // After 2 clicks, calculate target geometry
+        if (newPoints.length === 2) {
+            const center = newPoints[0];
+            const edge = newPoints[1];
+
+            const dx = edge.x - center.x;
+            const dy = edge.y - center.y;
+            const radius = Math.sqrt(dx * dx + dy * dy);
+
+            // User clicked from center to 5-ring edge
+            // So 5 rings = radius, meaning 1 ring = radius / 5
+            const ringWidth = radius / 5;
+
+            setAnalysisData({
+                ...analysisData,
+                target: {
+                    centerX: center.x,
+                    centerY: center.y,
+                    ringWidth
+                }
+            });
+
+            setMode('score');
+            setCalibrationPoints([]);
+        }
+    };
+
+    const skipCalibration = () => {
+        setMode('score');
+    };
+
     const handleImageClick = (e) => {
-        // Default target geometry if not provided (fallback)
         const target = analysisData?.target || { centerX: 0.5, centerY: 0.5, ringWidth: 0.05 };
 
         const rect = e.target.getBoundingClientRect();
         const x = (e.clientX - rect.left) / rect.width;
         const y = (e.clientY - rect.top) / rect.height;
 
-        // Calculate points for new shot
         const points = calculatePoints(x, y, target);
 
         const newShot = { x, y, points, id: Date.now() };
@@ -55,12 +93,6 @@ export default function ShootForm({ eventId }) {
         const dy = y - target.centerY;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        // Simple linear scoring based on ring width
-        // Assuming 10 rings, distance from center determines score
-        // 10 ring is within 0.5 * ringWidth (bullseye)
-        // 9 ring is within 1.5 * ringWidth, etc.
-        // This is an approximation.
-
         const ringIndex = Math.floor(distance / target.ringWidth);
         const points = Math.max(0, 10 - ringIndex);
         return points;
@@ -76,29 +108,79 @@ export default function ShootForm({ eventId }) {
         });
 
         if (result.success) {
-            router.refresh(); // Refresh to show new score in list
-            // Reset form
-            setStep('upload');
+            router.refresh();
+            setMode('upload');
             setShots([]);
             setImageData(null);
             setAnalysisData(null);
+            setCalibrationPoints([]);
         } else {
             alert('Failed to save score');
         }
         setIsSaving(false);
     };
 
-    if (step === 'review' && imageData) {
+    // Calibration mode
+    if (mode === 'calibrate' && imageData) {
+        return (
+            <div className="card">
+                <h2 style={{ marginBottom: '1rem' }}>Calibrate Target</h2>
+                <p style={{ marginBottom: '1rem', fontSize: '0.9rem', color: '#a0a0a0' }}>
+                    {calibrationPoints.length === 0 && 'Step 1: Click the center (bullseye)'}
+                    {calibrationPoints.length === 1 && 'Step 2: Click the edge of the 5-ring'}
+                </p>
+
+                <div
+                    style={{ position: 'relative', marginBottom: '1.5rem', cursor: 'crosshair' }}
+                    onClick={handleCalibrationClick}
+                >
+                    <img
+                        src={imageData}
+                        alt="Target"
+                        style={{ width: '100%', borderRadius: '8px', display: 'block' }}
+                    />
+
+                    {calibrationPoints.map((point, index) => (
+                        <div
+                            key={index}
+                            style={{
+                                position: 'absolute',
+                                left: `${point.x * 100}%`,
+                                top: `${point.y * 100}%`,
+                                width: '16px',
+                                height: '16px',
+                                background: index === 0 ? 'rgba(0, 255, 0, 0.8)' : 'rgba(0, 150, 255, 0.8)',
+                                border: '2px solid white',
+                                borderRadius: '50%',
+                                transform: 'translate(-50%, -50%)'
+                            }}
+                        />
+                    ))}
+                </div>
+
+                <button
+                    className="btn btn-outline"
+                    onClick={skipCalibration}
+                    style={{ width: '100%' }}
+                >
+                    Skip Calibration
+                </button>
+            </div>
+        );
+    }
+
+    // Scoring mode
+    if (mode === 'score' && imageData) {
         const totalPoints = shots.reduce((sum, shot) => sum + shot.points, 0);
 
         return (
             <div className="card">
                 <h2 style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between' }}>
-                    Review Score
+                    Score Target
                     <span style={{ color: 'var(--primary)' }}>{totalPoints} pts</span>
                 </h2>
                 <p style={{ marginBottom: '1rem', fontSize: '0.9rem', color: '#a0a0a0' }}>
-                    Tap image to add shot. Tap red dot to remove.
+                    Tap bullet holes to add shot. Tap red dot to remove.
                 </p>
 
                 <div
@@ -111,7 +193,6 @@ export default function ShootForm({ eventId }) {
                         style={{ width: '100%', borderRadius: '8px', display: 'block' }}
                     />
 
-                    {/* Render Shots */}
                     {shots.map((shot, index) => (
                         <div
                             key={shot.id || index}
@@ -143,7 +224,7 @@ export default function ShootForm({ eventId }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <button
                         className="btn btn-outline"
-                        onClick={() => setStep('upload')}
+                        onClick={() => setMode('upload')}
                         disabled={isSaving}
                     >
                         Discard
@@ -160,6 +241,7 @@ export default function ShootForm({ eventId }) {
         );
     }
 
+    // Upload mode
     return (
         <form action={formAction}>
             <input type="hidden" name="eventId" value={eventId} />
